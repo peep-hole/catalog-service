@@ -33,9 +33,11 @@ jobs:
       - name: Run Grype to generate SARIF vulnerability report
         run: |
           grype dir:${{ github.workspace }} -o sarif > anchore-results.sarif
+          echo "=== DEBUG: Czy plik istnieje ==="
+          ls -lh anchore-results.sarif || echo "SARIF nie został wygenerowany!"
 
       - name: Upload vulnerability SARIF report to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
         if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: anchore-results.sarif
