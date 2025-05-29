@@ -1,10 +1,9 @@
 name: Commit Stage
-
 on: push
 
 jobs:
   build:
-    name: Build and Scan
+    name: Build and Test
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -12,32 +11,25 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
           cache: gradle
-
       - name: Build, unit tests and integration tests
         run: |
           chmod +x gradlew
           ./gradlew build
-
-      - name: Install Grype vulnerability scanner
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
-          grype version
-
-      - name: Run Grype to generate SARIF vulnerability report
-        run: |
-          grype dir:${{ github.workspace }} -o sarif > anchore-results.sarif
-          echo "=== DEBUG: Czy plik istnieje ==="
-          ls -lh anchore-results.sarif || echo "SARIF nie został wygenerowany!"
-
-      - name: Upload vulnerability SARIF report to GitHub Security
-        if: success() || failure()
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Code vulnerability scanning
+        uses: anchore/scan-action@v3
+        id: scan
         with:
-          sarif_file: anchore-results.sarif
+          path: "${{ github.workspace }}"
+          fail-build: false
+          severity-cutoff: high
+      - name: Upload vulnerability report
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() || failure()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
